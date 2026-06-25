@@ -29,6 +29,10 @@ import { WarehouseUser } from "../shared/models/WarehouseUser";
 import { WarehouseLocation } from "../shared/models/WarehouseLocation";
 import { WMSProductCatalog } from "../shared/models/WMSProductCatalog";
 import { Farmer } from "../shared/models/Farmer";
+import { Warehouse } from "../shared/models/Warehouse";
+
+// Fixed warehouse code for the default seed warehouse (deterministic, not random)
+const DEFAULT_WAREHOUSE_CODE = "HYDMAIN1";
 
 // ── Zone definitions from the FR3SH 3000-product catalog ─────────────────────
 const ZONES = [
@@ -150,10 +154,41 @@ const SEED_PRODUCTS = [
   { skuPrefix: "FR3SH-Z-0040", zoneCode: "Z", category: "Condiments & Misc Food", subcategory: "Tamarind Paste", productName: "Organic Tamarind Paste - Standard", grade: "Standard", form: "Paste", defaultUnit: "kg", storageType: "Ambient", shelfLifeDays: 180, hsnCode: "2008", gstPercent: "5/12", fssaiRequired: true, organicCertRequired: true, seasonal: false, mainSeason: "Year-round", stateAvailability: "AP, TN", supplierType: "Farmer/FPO", barcodeSkuCode: "Z0000040", minimumOrderQty: 1, recommendedPackaging: "Glass Jar", qualityChecks: "Organic certificate, moisture, visual grading" },
 ];
 
-async function seedUser() {
+async function seedWarehouse(): Promise<string> {
+  const existing = await Warehouse.findOne({ warehouseCode: DEFAULT_WAREHOUSE_CODE });
+  if (existing) {
+    console.log(`Warehouse ${DEFAULT_WAREHOUSE_CODE} already exists, skipping`);
+    return DEFAULT_WAREHOUSE_CODE;
+  }
+  await Warehouse.create({
+    warehouseCode: DEFAULT_WAREHOUSE_CODE,
+    name: "Hyderabad Main Warehouse",
+    address: "Plot 42, IDA Nacharam",
+    city: "Hyderabad",
+    state: "Telangana",
+    pinCode: "500076",
+    contactPerson: "Warehouse Manager",
+    phone: "+91 98765 00000",
+    email: "wms@fr3sh.in",
+    totalZones: 26,
+    totalCapacityKg: 50000,
+    status: "Active",
+    isActive: true,
+  });
+  console.log(`✅ Created default warehouse: ${DEFAULT_WAREHOUSE_CODE} — Hyderabad Main`);
+  return DEFAULT_WAREHOUSE_CODE;
+}
+
+async function seedUser(whCode: string) {
   const existing = await WarehouseUser.findOne({ email: "manager@gmail.com" });
   if (existing) {
-    console.log("Manager user already exists, skipping");
+    // Update warehouseId to match the seeded warehouse code
+    if (existing.warehouseId !== whCode) {
+      await WarehouseUser.updateOne({ email: "manager@gmail.com" }, { warehouseId: whCode });
+      console.log(`✅ Updated manager user warehouseId to ${whCode}`);
+    } else {
+      console.log("Manager user already exists, skipping");
+    }
     return;
   }
   const passwordHash = await bcrypt.hash("test@1234", 12);
@@ -163,13 +198,13 @@ async function seedUser() {
     passwordHash,
     role: "Warehouse Manager",
     isActive: true,
-    warehouseId: "main",
+    warehouseId: whCode,
   });
   console.log("✅ Created default manager user: manager@gmail.com / test@1234");
 }
 
-async function seedLocations() {
-  const existing = await WarehouseLocation.countDocuments({ type: "zone" });
+async function seedLocations(whCode: string) {
+  const existing = await WarehouseLocation.countDocuments({ type: "zone", warehouseId: whCode });
   if (existing > 0) {
     console.log("Zones already seeded, skipping");
     return;
@@ -191,28 +226,41 @@ async function seedLocations() {
       storageType: storageTypeMap[zone.type] ?? "Ambient",
       temperatureRange: TEMP_MAP[zone.type] ?? "18–25°C",
       productCategoryMapping: [zone.name],
-      warehouseId: "main",
+      warehouseId: whCode,
       currentOccupancy: 0,
     });
   }
-  console.log(`✅ Seeded ${ZONES.length} warehouse zones (A–Z)`);
+  console.log(`✅ Seeded ${ZONES.length} warehouse zones (A–Z) for warehouse ${whCode}`);
 }
 
-async function seedProducts() {
-  const existing = await WMSProductCatalog.countDocuments();
+async function seedProducts(whCode: string) {
+  const existing = await WMSProductCatalog.countDocuments({ warehouseId: whCode });
   if (existing > 0) {
     console.log(`Products already seeded (${existing} docs), skipping`);
     return;
   }
 
-  await WMSProductCatalog.insertMany(
-    SEED_PRODUCTS.map((p) => ({
+  // Rewrite SKUs: FR3SH-A-0001 → FR3SH-HYDMAIN1-A-0001
+  const transformed = SEED_PRODUCTS.map((p) => {
+    // Old skuPrefix: "FR3SH-A-0001" → new: "FR3SH-HYDMAIN1-A-0001"
+    const parts = p.skuPrefix.split("-"); // ["FR3SH", "A", "0001"]
+    const zone = parts[1];
+    const seq = parts[2];
+    const newSkuPrefix = `FR3SH-${whCode}-${zone}-${seq}`;
+    const newSkuBase = `FR3SH-${whCode}-${zone}-`;
+    const newBarcode = `${whCode}${zone}${seq}`;
+    return {
       ...p,
-      skuBase: p.skuPrefix.replace(/-\d+$/, "-"),
+      skuPrefix: newSkuPrefix,
+      skuBase: newSkuBase,
+      barcodeSkuCode: newBarcode,
+      warehouseId: whCode,
       isActive: true,
-    })),
-  );
-  console.log(`✅ Seeded ${SEED_PRODUCTS.length} products (3 per zone, all 26 zones)`);
+    };
+  });
+
+  await WMSProductCatalog.insertMany(transformed);
+  console.log(`✅ Seeded ${transformed.length} products with SKUs prefixed FR3SH-${whCode}-{ZONE}-{SEQ}`);
 }
 
 const SEED_FARMERS = [
@@ -230,24 +278,42 @@ const SEED_FARMERS = [
   { name: "Coorg Coffee Estate", type: "Company", state: "Karnataka", location: "Coorg", phone: "9886000001", organicCertNumber: "IND-ORG-2024-012" },
 ];
 
-async function migrateProductSkuBase() {
-  // Set skuBase on existing products that don't have it
-  const missing = await WMSProductCatalog.countDocuments({ skuBase: { $exists: false } });
-  if (missing === 0) {
-    console.log("Products already have skuBase, skipping migration");
-    return;
+async function migrateExistingData(whCode: string) {
+  // Migrate products that were seeded before multi-warehouse support
+  const oldProducts = await WMSProductCatalog.countDocuments({ warehouseId: { $in: ["main", null, undefined] } });
+  if (oldProducts > 0) {
+    // Update old SKU format: FR3SH-A-0001 → FR3SH-HYDMAIN1-A-0001
+    const products = await WMSProductCatalog.find({ warehouseId: { $in: ["main", null] } });
+    for (const p of products) {
+      const parts = p.skuPrefix.split("-"); // ["FR3SH", "A", "0001"] or already new format
+      if (parts.length === 3) {
+        // Old format, needs migration
+        const zone = parts[1];
+        const seq = parts[2];
+        const newSkuPrefix = `FR3SH-${whCode}-${zone}-${seq}`;
+        const newSkuBase = `FR3SH-${whCode}-${zone}-`;
+        await WMSProductCatalog.updateOne({ _id: p._id }, {
+          $set: { skuPrefix: newSkuPrefix, skuBase: newSkuBase, warehouseId: whCode },
+        });
+      } else {
+        // Just update warehouseId
+        await WMSProductCatalog.updateOne({ _id: p._id }, { $set: { warehouseId: whCode } });
+      }
+    }
+    console.log(`✅ Migrated ${oldProducts} products to warehouseId ${whCode}`);
   }
-  const products = await WMSProductCatalog.find({ skuBase: { $exists: false } });
-  for (const p of products) {
-    // "FR3SH-A-0001" → "FR3SH-A-"
-    const skuBase = p.skuPrefix.replace(/-\d+$/, "-");
-    await WMSProductCatalog.updateOne({ _id: p._id }, { $set: { skuBase } });
-  }
-  console.log(`✅ Migrated skuBase for ${missing} products`);
+
+  // Migrate locations
+  await WarehouseLocation.updateMany({ warehouseId: { $in: ["main", null] } }, { $set: { warehouseId: whCode } });
+
+  // Migrate farmers/suppliers
+  await Farmer.updateMany({ warehouseId: { $in: ["main", null] } }, { $set: { warehouseId: whCode } });
+
+  console.log(`✅ Migration complete — all legacy data now linked to warehouse ${whCode}`);
 }
 
-async function seedFarmers() {
-  const existing = await Farmer.countDocuments();
+async function seedFarmers(whCode: string) {
+  const existing = await Farmer.countDocuments({ warehouseId: whCode });
   if (existing > 0) {
     console.log(`Farmers already seeded (${existing} docs), skipping`);
     return;
@@ -256,20 +322,27 @@ async function seedFarmers() {
     ...f,
     farmerId: `FRM-${String(i + 1).padStart(4, "0")}`,
     isActive: true,
-    warehouseId: "main",
+    warehouseId: whCode,
   }));
   await Farmer.insertMany(docs);
-  console.log(`✅ Seeded ${docs.length} farmers / FPOs`);
+  console.log(`✅ Seeded ${docs.length} farmers / FPOs for warehouse ${whCode}`);
 }
 
 async function main() {
   await connect();
-  await seedUser();
-  await seedLocations();
-  await seedProducts();
-  await migrateProductSkuBase();
-  await seedFarmers();
-  console.log("\n🌿 FR3SH WMS seed complete");
+  // Step 1: Ensure default warehouse exists
+  const whCode = await seedWarehouse();
+  // Step 2: Seed / update user linked to this warehouse
+  await seedUser(whCode);
+  // Step 3: Seed locations
+  await seedLocations(whCode);
+  // Step 4: Seed products with new warehouse-aware SKU format
+  await seedProducts(whCode);
+  // Step 5: Migrate any legacy data still using "main" as warehouseId
+  await migrateExistingData(whCode);
+  // Step 6: Seed farmers / suppliers
+  await seedFarmers(whCode);
+  console.log(`\n🌿 FR3SH WMS seed complete — Warehouse: ${whCode}`);
   process.exit(0);
 }
 

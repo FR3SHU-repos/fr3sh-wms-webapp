@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const page = Number(searchParams.get("page") ?? 1);
   const limit = Number(searchParams.get("limit") ?? 50);
 
-  const filter: Record<string, unknown> = { isActive: true };
+  const filter: Record<string, unknown> = { isActive: true, warehouseId: session.warehouseId };
   if (category) filter.category = category;
   if (zone) filter.zoneCode = zone;
   if (q) {
@@ -53,10 +53,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
 
   const zoneCode = (body.zoneCode as string).toUpperCase();
-  const skuBase = `FR3SH-${zoneCode}-`;
+  const whCode = session.warehouseCode;
 
-  // Find the highest existing sequence number in this zone
-  const lastProduct = await WMSProductCatalog.findOne({ zoneCode })
+  // SKU format: FR3SH-{WHCODE}-{ZONE}-{SEQ}
+  const skuBase = `FR3SH-${whCode}-${zoneCode}-`;
+
+  // Find the highest existing sequence in this zone + warehouse
+  const lastProduct = await WMSProductCatalog.findOne({ zoneCode, warehouseId: session.warehouseId })
     .sort({ skuPrefix: -1 })
     .select("skuPrefix")
     .lean();
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest) {
   }
 
   const skuPrefix = `${skuBase}${String(nextSeq).padStart(4, "0")}`;
-  const barcodeSkuCode = `${zoneCode}${String(nextSeq).padStart(7, "0")}`;
+  const barcodeSkuCode = `${whCode}${zoneCode}${String(nextSeq).padStart(6, "0")}`;
 
   const product = await WMSProductCatalog.create({
     skuPrefix,
@@ -96,6 +99,7 @@ export async function POST(req: NextRequest) {
     minimumOrderQty: Number(body.minimumOrderQty ?? 1),
     recommendedPackaging: body.recommendedPackaging,
     qualityChecks: body.qualityChecks,
+    warehouseId: session.warehouseId,
     isActive: true,
   });
 

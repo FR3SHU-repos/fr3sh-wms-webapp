@@ -6,6 +6,8 @@ export interface WMSTokenPayload {
   email: string;
   role: string;
   name: string;
+  warehouseId: string;
+  warehouseCode: string;
 }
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "fallback-secret-change-in-production";

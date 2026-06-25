@@ -25,6 +25,7 @@ export interface IWMSProductCatalog extends Document {
   recommendedPackaging?: string;
   qualityChecks?: string;
   listingNotes?: string;
+  warehouseId: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -56,6 +57,7 @@ const WMSProductCatalogSchema = new Schema<IWMSProductCatalog>(
     recommendedPackaging: String,
     qualityChecks: String,
     listingNotes: String,
+    warehouseId: { type: String, default: "main" },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true },
@@ -66,6 +68,7 @@ WMSProductCatalogSchema.index({ skuBase: 1 });
 WMSProductCatalogSchema.index({ zoneCode: 1 });
 WMSProductCatalogSchema.index({ category: 1 });
 WMSProductCatalogSchema.index({ barcodeSkuCode: 1 });
+WMSProductCatalogSchema.index({ warehouseId: 1, zoneCode: 1 });
 
 export const WMSProductCatalog =
   models.WMSProductCatalog ??

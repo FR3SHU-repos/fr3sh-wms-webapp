@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
 
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = { warehouseId: session.warehouseId };
   if (status) filter.status = status;
 
   const tasks = await PickTask.find(filter).sort({ createdAt: -1 }).limit(50).lean();
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     customerName: body.customerName,
     items: body.items ?? [],
     status: "Pending Pick",
-    warehouseId: "main",
+    warehouseId: session.warehouseId,
   });
 
   return NextResponse.json({ success: true, message: "Pick task created", data: task }, { status: 201 });

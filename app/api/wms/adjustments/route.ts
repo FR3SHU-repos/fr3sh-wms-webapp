@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
 
   await mongoDB();
-  const adjustments = await StockAdjustment.find().sort({ createdAt: -1 }).limit(50).lean();
+  const adjustments = await StockAdjustment.find({ warehouseId: session.warehouseId }).sort({ createdAt: -1 }).limit(50).lean();
   return NextResponse.json({ success: true, data: adjustments });
 }
 
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     notes: body.notes,
     performedBy: session.id,
     approvalStatus: highValueThreshold ? "Pending" : "Approved",
+    warehouseId: session.warehouseId,
   });
 
   if (!highValueThreshold && body.batch) {
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
       referenceType: "StockAdjustment",
       notes: `${body.reason}: ${body.notes ?? ""}`,
       performedBy: session.id,
+      warehouseId: session.warehouseId,
     });
   }
 

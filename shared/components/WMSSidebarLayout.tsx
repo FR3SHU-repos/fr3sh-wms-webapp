@@ -26,6 +26,7 @@ import {
   ChevronDown,
   ChevronRight,
   BookOpen,
+  Warehouse,
 } from "lucide-react";
 
 interface NavItem {
@@ -57,6 +58,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/wms/returns", label: "Returns", icon: RotateCcw },
   { href: "/wms/adjustments", label: "Adjustments", icon: SlidersHorizontal },
   { href: "/wms/reports", label: "Reports", icon: BarChart3 },
+  { href: "/wms/warehouses", label: "Warehouses", icon: Warehouse },
   { href: "/wms/settings", label: "Settings", icon: Settings },
 ];
 
@@ -151,6 +153,18 @@ function NavLink({
   );
 }
 
+function WarehouseBadge() {
+  const { user } = useWMSUser();
+  if (!user?.warehouseCode) return null;
+  return (
+    <div className="mx-3 mb-2 rounded-xl bg-primary/8 border border-primary/20 px-3 py-2">
+      <p className="text-xs text-foreground-muted leading-none mb-0.5">Active Warehouse</p>
+      <p className="text-sm font-semibold text-foreground-heading truncate">{user.warehouseName}</p>
+      <p className="font-mono text-xs text-primary mt-0.5">{user.warehouseCode}</p>
+    </div>
+  );
+}
+
 function Sidebar({ onClose }: { onClose?: () => void }) {
   const { user, logout } = useWMSUser();
   const router = useRouter();
@@ -178,6 +192,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
         )}
       </div>
 
+      <WarehouseBadge />
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5 scrollbar-hide">
         {NAV_ITEMS.map((item) => (
           <NavLink key={item.href} item={item} onClick={onClose} />

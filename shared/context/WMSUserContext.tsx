@@ -7,6 +7,9 @@ export interface IWMSUser {
   email: string;
   role: string;
   photo?: string;
+  warehouseId: string;
+  warehouseCode: string;
+  warehouseName: string;
 }
 
 interface IWMSUserContext {

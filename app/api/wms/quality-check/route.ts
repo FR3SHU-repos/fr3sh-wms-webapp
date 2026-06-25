@@ -12,12 +12,27 @@ export async function GET(req: NextRequest) {
 
   await mongoDB();
   const { searchParams } = new URL(req.url);
+
+  // Stats mode: return today's accepted/rejected counts
+  if (searchParams.get("stats") === "true") {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [acceptedToday, rejectedToday, partialToday] = await Promise.all([
+      QualityCheck.countDocuments({ result: "Accepted", warehouseId: session.warehouseId, performedAt: { $gte: todayStart } }),
+      QualityCheck.countDocuments({ result: "Rejected", warehouseId: session.warehouseId, performedAt: { $gte: todayStart } }),
+      QualityCheck.countDocuments({ result: "Partially Accepted", warehouseId: session.warehouseId, performedAt: { $gte: todayStart } }),
+    ]);
+
+    return NextResponse.json({ success: true, acceptedToday, rejectedToday, partialToday });
+  }
+
   const page = Number(searchParams.get("page") ?? 1);
   const limit = Number(searchParams.get("limit") ?? 20);
 
   const [checks, total] = await Promise.all([
-    QualityCheck.find().sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
-    QualityCheck.countDocuments(),
+    QualityCheck.find({ warehouseId: session.warehouseId }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    QualityCheck.countDocuments({ warehouseId: session.warehouseId }),
   ]);
 
   return NextResponse.json({ success: true, data: checks, total });
@@ -30,7 +45,7 @@ export async function POST(req: NextRequest) {
   await mongoDB();
   const body = await req.json();
 
-  const count = await QualityCheck.countDocuments();
+  const count = await QualityCheck.countDocuments({ warehouseId: session.warehouseId });
   const qcId = `QC-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
 
   const qc = await QualityCheck.create({
@@ -52,6 +67,7 @@ export async function POST(req: NextRequest) {
     qcNotes: body.qcNotes,
     photos: body.photos ?? [],
     result: body.result ?? "Accepted",
+    warehouseId: session.warehouseId,
     performedBy: session.id,
     performedAt: new Date(),
   });
@@ -64,12 +80,12 @@ export async function POST(req: NextRequest) {
         : "Rejected";
 
   await InwardEntry.findOneAndUpdate(
-    { entryId: body.inwardId },
+    { entryId: body.inwardId, warehouseId: session.warehouseId },
     { status: inwardStatus },
   );
 
   if (body.result !== "Rejected") {
-    const inward = await InwardEntry.findOne({ entryId: body.inwardId });
+    const inward = await InwardEntry.findOne({ entryId: body.inwardId, warehouseId: session.warehouseId });
     if (inward) {
       const existingBatch = await InventoryBatch.findOne({ batchId: inward.batchId });
       const acceptedQty = Number(body.acceptedQty ?? 0);
@@ -90,6 +106,7 @@ export async function POST(req: NextRequest) {
           inwardEntryId: body.inwardId,
           qcEntryId: qcId,
           status: "Active",
+          warehouseId: session.warehouseId,
         });
       }
 
@@ -107,6 +124,7 @@ export async function POST(req: NextRequest) {
         referenceId: qcId,
         referenceType: "QualityCheck",
         performedBy: session.id,
+        warehouseId: session.warehouseId,
       });
     }
   }

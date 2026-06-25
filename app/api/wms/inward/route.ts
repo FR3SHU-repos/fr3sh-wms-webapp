@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const page = Number(searchParams.get("page") ?? 1);
   const limit = Number(searchParams.get("limit") ?? 20);
 
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = { warehouseId: session.warehouseId };
   if (status) filter.status = status;
 
   const [entries, total] = await Promise.all([
@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
     const skuBase: string = body.skuBase;
     const escapedBase = skuBase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const existing = await InwardEntry.countDocuments({
+      warehouseId: session.warehouseId,
       skuCode: { $regex: `^${escapedBase}` },
     });
     resolvedSku = `${skuBase}${String(existing + 1).padStart(4, "0")}`;
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
     notes: body.notes,
     status: "QC Pending",
     receivedBy: session.id,
-    warehouseId: "main",
+    warehouseId: session.warehouseId,
   });
 
   const movementCount = await InventoryMovement.countDocuments();
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
     referenceType: "InwardEntry",
     notes: "Stock received from supplier",
     performedBy: session.id,
-    warehouseId: "main",
+    warehouseId: session.warehouseId,
   });
 
   return NextResponse.json({ success: true, message: "Inward entry created", data: entry }, { status: 201 });

@@ -14,12 +14,12 @@ export async function GET(req: NextRequest) {
   const page = Number(searchParams.get("page") ?? 1);
   const limit = Number(searchParams.get("limit") ?? 50);
 
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = { warehouseId: session.warehouseId };
   if (category) filter.category = category;
 
   const [items, batches, total] = await Promise.all([
     InventoryItem.find(filter).skip((page - 1) * limit).limit(limit).lean(),
-    InventoryBatch.find({ status: { $in: ["Active", "Near Expiry"] } })
+    InventoryBatch.find({ warehouseId: session.warehouseId, status: { $in: ["Active", "Near Expiry"] } })
       .sort({ expiryDate: 1 })
       .lean(),
     InventoryItem.countDocuments(filter),

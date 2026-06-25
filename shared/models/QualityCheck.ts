@@ -5,6 +5,7 @@ export interface IQualityCheck extends Document {
   inwardEntryId: string;
   batchId: string;
   productName: string;
+  warehouseId: string;
   moistureLevel?: string;
   foreignMaterial: string;
   damagePercentage: number;
@@ -51,6 +52,7 @@ const QualityCheckSchema = new Schema<IQualityCheck>(
       enum: ["Accepted", "Partially Accepted", "Rejected", "Lab Test Pending"],
       default: "Accepted",
     },
+    warehouseId: { type: String, default: "main" },
     performedBy: { type: String, required: true },
     performedAt: { type: Date, default: Date.now },
   },

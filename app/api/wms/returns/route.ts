@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
 
   await mongoDB();
-  const returns = await Return.find().sort({ createdAt: -1 }).limit(50).lean();
+  const returns = await Return.find({ warehouseId: session.warehouseId }).sort({ createdAt: -1 }).limit(50).lean();
   return NextResponse.json({ success: true, data: returns });
 }
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     notes: body.notes,
     handledBy: session.id,
     status: "Pending Inspection",
-    warehouseId: "main",
+    warehouseId: session.warehouseId,
   });
 
   const movCount = await InventoryMovement.countDocuments();
@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
     referenceId: returnId,
     referenceType: "Return",
     performedBy: session.id,
+    warehouseId: session.warehouseId,
   });
 
   return NextResponse.json({ success: true, message: "Return registered", data: ret }, { status: 201 });

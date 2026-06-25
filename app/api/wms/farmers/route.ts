@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     .toArray();
 
   // Query WMS-registered suppliers (wms_suppliers collection)
-  const wmsFilter: Record<string, unknown> = { isActive: true };
+  const wmsFilter: Record<string, unknown> = { isActive: true, warehouseId: session.warehouseId };
   if (q) wmsFilter.name = { $regex: q, $options: "i" };
   const wmsSuppliers = await Farmer.find(wmsFilter)
     .select("farmerId name type state location organicCertNumber phone")
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     organicCertNumber: body.organicCertNumber,
     certExpiryDate: body.certExpiryDate ? new Date(body.certExpiryDate) : undefined,
     notes: body.notes,
-    warehouseId: "main",
+    warehouseId: session.warehouseId,
   });
 
   return NextResponse.json({ success: true, message: "Supplier registered", data: farmer }, { status: 201 });

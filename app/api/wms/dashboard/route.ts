@@ -13,6 +13,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
 
   await mongoDB();
+  const wh = session.warehouseId;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -28,21 +29,19 @@ export async function GET() {
     dispatchPending,
     unreadAlerts,
   ] = await Promise.all([
-    InwardEntry.countDocuments({ receivedDate: { $gte: today } }),
-    InwardEntry.countDocuments({ status: "QC Pending" }),
-    PickTask.countDocuments({ status: { $in: ["Pending Pick", "Picking"] } }),
-    PackingTask.countDocuments({ status: { $in: ["Pending Packing", "Packing"] } }),
-    WarehouseAlert.countDocuments({ type: "low_stock", isResolved: false }),
+    InwardEntry.countDocuments({ warehouseId: wh, receivedDate: { $gte: today } }),
+    InwardEntry.countDocuments({ warehouseId: wh, status: "QC Pending" }),
+    PickTask.countDocuments({ warehouseId: wh, status: { $in: ["Pending Pick", "Picking"] } }),
+    PackingTask.countDocuments({ warehouseId: wh, status: { $in: ["Pending Packing", "Packing"] } }),
+    WarehouseAlert.countDocuments({ warehouseId: wh, type: "low_stock", isResolved: false }),
     InventoryBatch.countDocuments({
+      warehouseId: wh,
       status: { $in: ["Active", "Near Expiry"] },
-      expiryDate: {
-        $gte: today,
-        $lte: new Date(Date.now() + 7 * 86400000),
-      },
+      expiryDate: { $gte: today, $lte: new Date(Date.now() + 7 * 86400000) },
     }),
-    InventoryBatch.find({ quantityDamaged: { $gt: 0 } }).countDocuments(),
-    Dispatch.countDocuments({ status: "Ready for Dispatch" }),
-    WarehouseAlert.countDocuments({ isRead: false, isResolved: false }),
+    InventoryBatch.countDocuments({ warehouseId: wh, quantityDamaged: { $gt: 0 } }),
+    Dispatch.countDocuments({ warehouseId: wh, status: "Ready for Dispatch" }),
+    WarehouseAlert.countDocuments({ warehouseId: wh, isRead: false, isResolved: false }),
   ]);
 
   return NextResponse.json({

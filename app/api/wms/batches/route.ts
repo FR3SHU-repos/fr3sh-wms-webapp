@@ -14,9 +14,14 @@ export async function GET(req: NextRequest) {
   const page = Number(searchParams.get("page") ?? 1);
   const limit = Number(searchParams.get("limit") ?? 30);
 
-  const filter: Record<string, unknown> = {};
+  const locationId = searchParams.get("locationId");
+  const zoneCode = searchParams.get("zoneCode");
+
+  const filter: Record<string, unknown> = { warehouseId: session.warehouseId };
   if (status) filter.status = status;
   if (sku) filter.skuCode = sku;
+  if (zoneCode) filter.zoneCode = zoneCode;
+  if (locationId) filter.currentLocationId = locationId;
 
   const [batches, total] = await Promise.all([
     InventoryBatch.find(filter).sort({ expiryDate: 1 }).skip((page - 1) * limit).limit(limit).lean(),
