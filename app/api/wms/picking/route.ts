@@ -74,7 +74,7 @@ export async function PATCH(req: NextRequest) {
         await InventoryMovement.create({
           movementId: `MOV-PICK-${Date.now()}-${movCount}`,
           movementType: "pick",
-          skuCode: item.skuCode ?? "UNKNOWN",
+          skuCode: item.skuCode || "UNKNOWN",
           productName: item.product,
           batchId: item.batchId,
           quantity: item.quantity,

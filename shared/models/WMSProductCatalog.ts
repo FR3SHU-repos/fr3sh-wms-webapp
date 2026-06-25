@@ -2,6 +2,7 @@ import { Schema, Document, model, models } from "mongoose";
 
 export interface IWMSProductCatalog extends Document {
   skuPrefix: string;
+  skuBase: string;
   zoneCode: string;
   category: string;
   subcategory: string;
@@ -32,6 +33,7 @@ export interface IWMSProductCatalog extends Document {
 const WMSProductCatalogSchema = new Schema<IWMSProductCatalog>(
   {
     skuPrefix: { type: String, required: true },
+    skuBase: { type: String, required: true },
     zoneCode: { type: String, required: true },
     category: { type: String, required: true },
     subcategory: { type: String, required: true },
@@ -60,6 +62,7 @@ const WMSProductCatalogSchema = new Schema<IWMSProductCatalog>(
 );
 
 WMSProductCatalogSchema.index({ skuPrefix: 1 });
+WMSProductCatalogSchema.index({ skuBase: 1 });
 WMSProductCatalogSchema.index({ zoneCode: 1 });
 WMSProductCatalogSchema.index({ category: 1 });
 WMSProductCatalogSchema.index({ barcodeSkuCode: 1 });

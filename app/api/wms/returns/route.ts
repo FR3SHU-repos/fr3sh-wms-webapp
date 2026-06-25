@@ -44,9 +44,9 @@ export async function POST(req: NextRequest) {
   await InventoryMovement.create({
     movementId: `MOV-RET-${Date.now()}-${movCount}`,
     movementType: "return",
-    skuCode: body.sku ?? "UNKNOWN",
+    skuCode: body.sku || "UNKNOWN",
     productName: body.product,
-    batchId: body.batch ?? "RETURN",
+    batchId: body.batch || "RETURN",
     quantity: 1,
     unit: "unit",
     locationFrom: "Customer",

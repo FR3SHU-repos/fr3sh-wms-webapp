@@ -25,6 +25,7 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
+  BookOpen,
 } from "lucide-react";
 
 interface NavItem {
@@ -40,6 +41,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/wms/inward", label: "Inward", icon: PackageOpen },
   { href: "/wms/quality-check", label: "Quality Check", icon: ClipboardCheck },
   { href: "/wms/inventory", label: "Inventory", icon: Boxes },
+  { href: "/wms/products", label: "Product Catalog", icon: BookOpen },
   { href: "/wms/locations", label: "Locations", icon: MapPin },
   { href: "/wms/batches", label: "Batches & Expiry", icon: Layers },
   {

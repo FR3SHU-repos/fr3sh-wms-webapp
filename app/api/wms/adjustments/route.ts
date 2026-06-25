@@ -61,9 +61,9 @@ export async function POST(req: NextRequest) {
     await InventoryMovement.create({
       movementId: `MOV-ADJ-${Date.now()}-${movCount}`,
       movementType: "adjustment",
-      skuCode: body.sku ?? "UNKNOWN",
+      skuCode: body.sku || "UNKNOWN",
       productName: body.product,
-      batchId: body.batch,
+      batchId: body.batch || "UNKNOWN",
       quantity: Math.abs(diff),
       unit: body.unit ?? "kg",
       referenceId: adjustmentId,

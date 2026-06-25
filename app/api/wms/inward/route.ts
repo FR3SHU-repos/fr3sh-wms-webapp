@@ -33,15 +33,28 @@ export async function POST(req: NextRequest) {
   await mongoDB();
   const body = await req.json();
 
+  // Auto-generate SKU from skuBase if SKU not manually provided
+  let resolvedSku: string = body.sku || "";
+  if (!resolvedSku && body.skuBase) {
+    const skuBase: string = body.skuBase;
+    const escapedBase = skuBase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const existing = await InwardEntry.countDocuments({
+      skuCode: { $regex: `^${escapedBase}` },
+    });
+    resolvedSku = `${skuBase}${String(existing + 1).padStart(4, "0")}`;
+  }
+
   const count = await InwardEntry.countDocuments();
   const entryId = `INW-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
-  const batchId = generateBatchId(body.sku?.split("-")[1] ?? "X");
+  const zoneCode = resolvedSku?.split("-")[1] ?? "X";
+  const batchId = generateBatchId(zoneCode);
 
   const entry = await InwardEntry.create({
     entryId,
+    farmerId: body.farmerId || undefined,
     farmerName: body.farmer,
     productName: body.product,
-    skuCode: body.sku,
+    skuCode: resolvedSku || undefined,
     quantityReceived: Number(body.qty),
     unit: body.unit ?? "kg",
     batchId,
@@ -60,7 +73,7 @@ export async function POST(req: NextRequest) {
   await InventoryMovement.create({
     movementId: `MOV-${Date.now()}-${movementCount + 1}`,
     movementType: "inward",
-    skuCode: body.sku ?? "UNKNOWN",
+    skuCode: resolvedSku || "UNKNOWN",
     productName: body.product,
     batchId: entry.batchId,
     quantity: Number(body.qty),

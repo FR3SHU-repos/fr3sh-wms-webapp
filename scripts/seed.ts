@@ -28,6 +28,7 @@ async function connect() {
 import { WarehouseUser } from "../shared/models/WarehouseUser";
 import { WarehouseLocation } from "../shared/models/WarehouseLocation";
 import { WMSProductCatalog } from "../shared/models/WMSProductCatalog";
+import { Farmer } from "../shared/models/Farmer";
 
 // ── Zone definitions from the FR3SH 3000-product catalog ─────────────────────
 const ZONES = [
@@ -204,8 +205,61 @@ async function seedProducts() {
     return;
   }
 
-  await WMSProductCatalog.insertMany(SEED_PRODUCTS.map(p => ({ ...p, isActive: true })));
+  await WMSProductCatalog.insertMany(
+    SEED_PRODUCTS.map((p) => ({
+      ...p,
+      skuBase: p.skuPrefix.replace(/-\d+$/, "-"),
+      isActive: true,
+    })),
+  );
   console.log(`✅ Seeded ${SEED_PRODUCTS.length} products (3 per zone, all 26 zones)`);
+}
+
+const SEED_FARMERS = [
+  { name: "Ramaiah FPO", type: "FPO", state: "Telangana", location: "Warangal", phone: "9848000001", organicCertNumber: "IND-ORG-2024-001" },
+  { name: "Srinivas Farm", type: "Individual Farmer", state: "Andhra Pradesh", location: "Guntur", phone: "9848000002" },
+  { name: "Green Valley FPO", type: "FPO", state: "Karnataka", location: "Hassan", phone: "9848000003", organicCertNumber: "IND-ORG-2024-003" },
+  { name: "Assam Organic Growers Cooperative", type: "Cooperative", state: "Assam", location: "Kamrup", phone: "9435000001", organicCertNumber: "IND-ORG-2024-004" },
+  { name: "Punjab Wheat Farmers Society", type: "FPO", state: "Punjab", location: "Ludhiana", phone: "9815000001" },
+  { name: "Kerala Spice Traders", type: "Company", state: "Kerala", location: "Kozhikode", phone: "9447000001", organicCertNumber: "IND-ORG-2024-006" },
+  { name: "Rajasthan Dry Fruits FPO", type: "FPO", state: "Rajasthan", location: "Jodhpur", phone: "9828000001" },
+  { name: "Ooty Fresh Farms", type: "Individual Farmer", state: "Tamil Nadu", location: "Ooty", phone: "9894000001", organicCertNumber: "IND-ORG-2024-008" },
+  { name: "Sundarbans Honey Cooperative", type: "Cooperative", state: "West Bengal", location: "South 24 Parganas", phone: "9831000001", organicCertNumber: "IND-ORG-2024-009" },
+  { name: "Maharashtra FPO Alliance", type: "FPO", state: "Maharashtra", location: "Nashik", phone: "9823000001", organicCertNumber: "IND-ORG-2024-010" },
+  { name: "Himachal Herb Growers", type: "Cooperative", state: "Himachal Pradesh", location: "Kullu", phone: "9816000001", organicCertNumber: "IND-ORG-2024-011" },
+  { name: "Coorg Coffee Estate", type: "Company", state: "Karnataka", location: "Coorg", phone: "9886000001", organicCertNumber: "IND-ORG-2024-012" },
+];
+
+async function migrateProductSkuBase() {
+  // Set skuBase on existing products that don't have it
+  const missing = await WMSProductCatalog.countDocuments({ skuBase: { $exists: false } });
+  if (missing === 0) {
+    console.log("Products already have skuBase, skipping migration");
+    return;
+  }
+  const products = await WMSProductCatalog.find({ skuBase: { $exists: false } });
+  for (const p of products) {
+    // "FR3SH-A-0001" → "FR3SH-A-"
+    const skuBase = p.skuPrefix.replace(/-\d+$/, "-");
+    await WMSProductCatalog.updateOne({ _id: p._id }, { $set: { skuBase } });
+  }
+  console.log(`✅ Migrated skuBase for ${missing} products`);
+}
+
+async function seedFarmers() {
+  const existing = await Farmer.countDocuments();
+  if (existing > 0) {
+    console.log(`Farmers already seeded (${existing} docs), skipping`);
+    return;
+  }
+  const docs = SEED_FARMERS.map((f, i) => ({
+    ...f,
+    farmerId: `FRM-${String(i + 1).padStart(4, "0")}`,
+    isActive: true,
+    warehouseId: "main",
+  }));
+  await Farmer.insertMany(docs);
+  console.log(`✅ Seeded ${docs.length} farmers / FPOs`);
 }
 
 async function main() {
@@ -213,6 +267,8 @@ async function main() {
   await seedUser();
   await seedLocations();
   await seedProducts();
+  await migrateProductSkuBase();
+  await seedFarmers();
   console.log("\n🌿 FR3SH WMS seed complete");
   process.exit(0);
 }
