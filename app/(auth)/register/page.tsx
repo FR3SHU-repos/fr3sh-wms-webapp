@@ -1,44 +1,63 @@
 "use client";
 
-import React, { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Leaf, Eye, EyeOff, Warehouse } from "lucide-react";
 import toast from "react-hot-toast";
 import { useWMSUser } from "@/shared/context/WMSUserContext";
 
-function WMSLoginForm() {
+const ROLES = [
+  "Warehouse Manager",
+  "Receiving Staff",
+  "QC Staff",
+  "Picker",
+  "Packer",
+  "Dispatcher",
+  "Inventory Auditor",
+  "Finance Viewer",
+];
+
+export default function WMSRegisterPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { login } = useWMSUser();
 
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "", role: "" });
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
+    if (form.password !== form.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    setLoading(true);
     try {
-      const res = await fetch("/api/wms/auth/login", {
+      const res = await fetch("/api/wms/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          role: form.role,
+        }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.message ?? "Login failed");
+        toast.error(data.message ?? "Registration failed");
         return;
       }
 
       login(data.data);
       toast.success(`Welcome, ${data.data.name}`);
-      const redirect = searchParams.get("redirect") ?? "/wms/dashboard";
-      router.replace(redirect);
+      router.replace("/wms/dashboard");
     } catch {
       toast.error("Network error — please try again");
     } finally {
@@ -62,17 +81,27 @@ function WMSLoginForm() {
         </div>
 
         <div className="rounded-2xl bg-surface-card border border-border p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-foreground-heading mb-5">Sign in to continue</h2>
+          <h2 className="text-base font-semibold text-foreground-heading mb-5">Create your account</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-foreground-muted mb-1.5">
-                Email address
-              </label>
+              <label className="block text-xs font-medium text-foreground-muted mb-1.5">Full name</label>
+              <input
+                type="text"
+                required
+                autoFocus
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Jane Doe"
+                className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-border-focus transition-shadow"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-foreground-muted mb-1.5">Email address</label>
               <input
                 type="email"
                 required
-                autoFocus
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 placeholder="you@warehouse.com"
@@ -81,13 +110,31 @@ function WMSLoginForm() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-foreground-muted mb-1.5">
-                Password
-              </label>
+              <label className="block text-xs font-medium text-foreground-muted mb-1.5">Role</label>
+              <select
+                required
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value })}
+                className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-border-focus transition-shadow"
+              >
+                <option value="" disabled>
+                  Select your role
+                </option>
+                {ROLES.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-foreground-muted mb-1.5">Password</label>
               <div className="relative">
                 <input
                   type={showPw ? "text" : "password"}
                   required
+                  minLength={8}
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   placeholder="••••••••"
@@ -103,31 +150,36 @@ function WMSLoginForm() {
               </div>
             </div>
 
+            <div>
+              <label className="block text-xs font-medium text-foreground-muted mb-1.5">Confirm password</label>
+              <input
+                type={showPw ? "text" : "password"}
+                required
+                minLength={8}
+                value={form.confirmPassword}
+                onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-border-focus"
+              />
+            </div>
+
             <button
               type="submit"
               disabled={loading}
               className="w-full rounded-xl bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:bg-primary-hover disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? "Signing in…" : "Sign In"}
+              {loading ? "Creating account…" : "Create account"}
             </button>
           </form>
         </div>
 
         <p className="text-center text-xs text-foreground-muted mt-6">
-          New warehouse staff?{" "}
-          <Link href="/register" className="text-primary hover:underline">
-            Create an account
+          Already have an account?{" "}
+          <Link href="/login" className="text-primary hover:underline">
+            Sign in
           </Link>
         </p>
       </div>
     </div>
-  );
-}
-
-export default function WMSLoginPage() {
-  return (
-    <Suspense>
-      <WMSLoginForm />
-    </Suspense>
   );
 }

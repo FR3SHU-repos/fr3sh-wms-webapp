@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mongoDB } from "@/shared/lib/db/mongo";
 import { getWMSSession } from "@/shared/lib/auth";
-import { Warehouse } from "@/shared/models/Warehouse";
+import { IWarehouse, Warehouse } from "@/shared/models/Warehouse";
 import { WarehouseUser } from "@/shared/models/WarehouseUser";
 
 export async function GET() {
@@ -13,22 +13,22 @@ export async function GET() {
   // Super Admin sees all warehouses; everyone else sees only their own
   let warehouses;
   if (session.role === "Super Admin") {
-    warehouses = await Warehouse.find({ isActive: true }).sort({ createdAt: 1 }).lean();
+    warehouses = await Warehouse.find({ isActive: true }).sort({ createdAt: 1 }).lean<IWarehouse[]>();
   } else {
-    warehouses = await Warehouse.find({ warehouseCode: session.warehouseId, isActive: true }).lean();
+    warehouses = await Warehouse.find({ warehouseCode: session.warehouseId, isActive: true }).lean<IWarehouse[]>();
   }
 
   // Attach user counts
-  const codes = (warehouses as Array<{ warehouseCode: string }>).map((w) => w.warehouseCode);
+  const codes = warehouses.map((w) => w.warehouseCode);
   const userCounts = await WarehouseUser.aggregate([
     { $match: { warehouseId: { $in: codes }, isActive: true } },
     { $group: { _id: "$warehouseId", count: { $sum: 1 } } },
   ]);
   const countMap = Object.fromEntries(userCounts.map((u) => [u._id, u.count]));
 
-  const enriched = (warehouses as Array<Record<string, unknown>>).map((w) => ({
+  const enriched = warehouses.map((w) => ({
     ...w,
-    userCount: countMap[(w.warehouseCode as string)] ?? 0,
+    userCount: countMap[w.warehouseCode] ?? 0,
   }));
 
   return NextResponse.json({ success: true, data: enriched });

@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(curl -s -i http://localhost:3000/register -o /tmp/reg.html -w \"%{http_code}\\\\n\")",
+      "Read(//tmp/**)",
+      "Bash(curl -s -i -c /tmp/regcookie.txt -X POST http://localhost:3000/api/wms/auth/register -H 'Content-Type: application/json' -d '{\"name\":\"Test Register User\",\"email\":\"__smoketest_register@example.com\",\"password\":\"testpass123\",\"role\":\"Picker\"}')",
+      "Bash(grep -o \"<title>[^<]*</title>\" /tmp/reg.html; echo \"---cwd of pid---\"; lsof -p 48031 2>/dev/null | grep cwd)",
+      "Read(//private/tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3101/login)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3002/register)",
+      "Bash(curl -s -i -X POST http://localhost:3002/api/wms/auth/register -H 'Content-Type: application/json' -d '{\"name\":\"Smoke Test User\",\"email\":\"__smoketest_register@example.com\",\"password\":\"testpass123\",\"role\":\"Picker\"}')",
+      "Bash(curl -sv -X POST http://localhost:3002/api/wms/auth/register -H \"Content-Type: application/json\" -d '{\"name\":\"x\",\"email\":\"y@z.com\",\"password\":\"testpass123\",\"role\":\"Picker\"}')",
+      "Bash(cd \"/Users/priyatham-varma/Desktop/FR3SH/fr3sh-warehouse-webapp\" && cat next.config.* 2>/dev/null; echo \"---check file content on disk---\"; cat \"./app/api/wms/auth/register/route.ts\" | head -5; echo \"---full dev log---\"; tail -50 /tmp/fr3sh-dev.log)",
+      "Bash(lsof -i :3002 -sTCP:LISTEN)",
+      "Bash(curl -s -i -X POST http://localhost:3002/api/wms/auth/register -H \"Content-Type: application/json\" -d '{\"name\":\"Smoke\",\"email\":\"__smoketest2@example.com\",\"password\":\"testpass123\",\"role\":\"Picker\"}')",
+      "Bash(env)",
+      "Bash(curl -s -i http://127.0.0.1:3002/api/wms/auth/me)",
+      "Bash(curl -s -i -X POST http://127.0.0.1:3002/api/wms/auth/register -H \"Content-Type: application/json\" -d '{\"test\":1}')",
+      "Bash(curl -s -i -X POST http://localhost:3002/api/wms/auth/register -H 'Content-Type: application/json' -d '{\"name\":\"Dup\",\"email\":\"__smoketest_register@example.com\",\"password\":\"testpass123\",\"role\":\"Picker\"}')",
+      "Bash(curl -s -i -X POST http://localhost:3002/api/wms/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"__smoketest_register@example.com\",\"password\":\"testpass123\"}')",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -c /tmp/qc_test_cookie.txt -X POST http://localhost:3002/api/wms/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"manager@gmail.com\",\"password\":\"test@1234\"}' -o /dev/null -w 'login: %{http_code}\\\\n')",
+      "Bash(curl -s -b /tmp/qc_test_cookie.txt -i -X POST http://localhost:3002/api/wms/quality-check -H 'Content-Type: application/json' -d '{\"inwardId\":\"NONEXISTENT\",\"batchId\":\"TESTBATCH\",\"productName\":\"Test Product\",\"acceptedQty\":1,\"rejectedQty\":0,\"result\":\"Accepted\"}')",
+      "Bash(lsof -i :3000 -sTCP:LISTEN)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(curl -s -c /tmp/qc_test_cookie.txt -X POST http://localhost:3000/api/wms/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"manager@gmail.com\",\"password\":\"test@1234\"}' -o /dev/null -w 'login: %{http_code}\\\\n')",
+      "Bash(curl -s -b /tmp/qc_test_cookie.txt -i -X POST http://localhost:3000/api/wms/quality-check -H 'Content-Type: application/json' -d '{\"inwardId\":\"NONEXISTENT\",\"batchId\":\"TESTBATCH\",\"productName\":\"Test Product\",\"acceptedQty\":1,\"rejectedQty\":0,\"result\":\"Accepted\"}')",
+      "Bash(curl -s -b /tmp/qc_test_cookie.txt -i -X POST http://localhost:3000/api/wms/quality-check -H 'Content-Type: application/json' -d '{\"inwardId\":\"NONEXISTENT2\",\"batchId\":\"TESTBATCH2\",\"productName\":\"Test Product 2\",\"acceptedQty\":1,\"rejectedQty\":0,\"result\":\"Accepted\"}')",
+      "Bash(npm run *)"
+    ]
+  }
+}

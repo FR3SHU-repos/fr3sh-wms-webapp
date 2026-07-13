@@ -45,32 +45,44 @@ export async function POST(req: NextRequest) {
   await mongoDB();
   const body = await req.json();
 
-  const count = await QualityCheck.countDocuments({ warehouseId: session.warehouseId });
-  const qcId = `QC-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+  let qc;
+  let qcId = "";
+  for (let attempt = 0; ; attempt++) {
+    const count = await QualityCheck.countDocuments({ warehouseId: session.warehouseId });
+    qcId = `QC-${new Date().getFullYear()}-${String(count + 1 + attempt).padStart(4, "0")}`;
 
-  const qc = await QualityCheck.create({
-    qcId,
-    inwardEntryId: body.inwardId,
-    batchId: body.batchId,
-    productName: body.productName ?? body.product ?? "Unknown",
-    moistureLevel: body.moistureLevel,
-    foreignMaterial: body.foreignMaterial ?? "None",
-    damagePercentage: Number(body.damagePercentage ?? 0),
-    smell: body.smell ?? "Fresh",
-    color: body.color ?? "Good",
-    sizeGrade: body.sizeGrade ?? "A",
-    organicCertVerified: body.organicCertCheck ?? false,
-    labTestRequired: body.labTestRequired ?? false,
-    acceptedQuantity: Number(body.acceptedQty ?? 0),
-    rejectedQuantity: Number(body.rejectedQty ?? 0),
-    rejectionReason: body.rejectionReason,
-    qcNotes: body.qcNotes,
-    photos: body.photos ?? [],
-    result: body.result ?? "Accepted",
-    warehouseId: session.warehouseId,
-    performedBy: session.id,
-    performedAt: new Date(),
-  });
+    try {
+      qc = await QualityCheck.create({
+        qcId,
+        inwardEntryId: body.inwardId,
+        batchId: body.batchId,
+        productName: body.productName ?? body.product ?? "Unknown",
+        moistureLevel: body.moistureLevel,
+        foreignMaterial: body.foreignMaterial ?? "None",
+        damagePercentage: Number(body.damagePercentage ?? 0),
+        smell: body.smell ?? "Fresh",
+        color: body.color ?? "Good",
+        sizeGrade: body.sizeGrade ?? "A",
+        organicCertVerified: body.organicCertCheck ?? false,
+        labTestRequired: body.labTestRequired ?? false,
+        acceptedQuantity: Number(body.acceptedQty ?? 0),
+        rejectedQuantity: Number(body.rejectedQty ?? 0),
+        rejectionReason: body.rejectionReason,
+        qcNotes: body.qcNotes,
+        photos: body.photos ?? [],
+        result: body.result ?? "Accepted",
+        warehouseId: session.warehouseId,
+        performedBy: session.id,
+        performedAt: new Date(),
+      });
+      break;
+    } catch (err) {
+      const isDupQcId = (err as { code?: number; keyPattern?: Record<string, unknown> })?.code === 11000
+        && "qcId" in ((err as { keyPattern?: Record<string, unknown> }).keyPattern ?? {});
+      if (isDupQcId && attempt < 10) continue;
+      throw err;
+    }
+  }
 
   const inwardStatus =
     body.result === "Accepted"

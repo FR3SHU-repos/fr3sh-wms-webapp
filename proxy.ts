@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyWMSToken } from "@/shared/lib/auth";
 
-const PUBLIC_PATHS = ["/login", "/api/wms/auth/login"];
+const PUBLIC_PATHS = ["/login", "/register", "/api/wms/auth/login", "/api/wms/auth/register"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
