@@ -7,13 +7,31 @@ export async function GET(req: NextRequest) {
   const session = await getWMSSession();
   if (!session) return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
 
-  await mongoDB();
   const { searchParams } = new URL(req.url);
   const category = searchParams.get("category");
   const zone = searchParams.get("zone");
   const q = searchParams.get("q");
   const page = Number(searchParams.get("page") ?? 1);
   const limit = Number(searchParams.get("limit") ?? 50);
+
+  if (process.env.WMS_CANONICAL_CATALOGUE_READS === "1") {
+    const base = process.env.GO_API_BASE_URL?.trim().replace(/\/+$/, "").replace(/\/api\/v1$/i, "");
+    if (!base) return NextResponse.json({ success: false, message: "Canonical catalogue is not configured" }, { status: 503 });
+    const response = await fetch(`${base}/api/v1/skus?q=${encodeURIComponent(q ?? "")}`, { cache: "no-store", signal: AbortSignal.timeout(8000) });
+    const payload = await response.json();
+    if (!response.ok || payload?.success !== true) return NextResponse.json({ success: false, message: payload?.message ?? "Canonical catalogue unavailable" }, { status: 502 });
+    const all = (payload.data?.items ?? []).map((sku: any) => ({
+      _id: sku.id, canonicalSkuId: sku.id, canonicalProductId: sku.productId,
+      skuPrefix: sku.code, barcodeSkuCode: sku.barcode, productName: sku.productName ?? sku.code,
+      defaultUnit: sku.unit, minimumOrderQty: sku.packQuantity, isActive: sku.status === "active",
+      legacyRefs: sku.legacyRefs ?? [], warehouseId: session.warehouseId,
+    }));
+    const filtered = all.filter((item: any) => !category || item.category === category).filter((item: any) => !zone || item.zoneCode === zone);
+    const start = Math.max(0, (page - 1) * limit);
+    return NextResponse.json({ success: true, data: filtered.slice(start, start + limit), total: filtered.length, page, limit, source: "canonical-go" });
+  }
+
+  await mongoDB();
 
   const filter: Record<string, unknown> = { isActive: true, warehouseId: session.warehouseId };
   if (category) filter.category = category;

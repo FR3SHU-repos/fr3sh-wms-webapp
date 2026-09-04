@@ -90,6 +90,8 @@ App starts at: **http://localhost:3001** (or `:3000` if farmers-republic is not 
 
 ## WMS Routes
 
+Canonical Go SKU reads are available behind `WMS_CANONICAL_CATALOGUE_READS=1` with `GO_API_BASE_URL` configured. Keep the flag disabled until reviewed SKU mappings populate canonical variants and SKUs. The adapter changes catalogue identity reads only and never moves or recomputes inventory quantities.
+
 | Route | Description |
 |---|---|
 | `/wms/dashboard` | Real-time warehouse overview |

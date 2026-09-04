@@ -1,33 +1,7 @@
-import { NextResponse } from "next/server";
-import { getWMSSession } from "@/shared/lib/auth";
-import { mongoDB } from "@/shared/lib/db/mongo";
-import { WarehouseUser } from "@/shared/models/WarehouseUser";
-import { Warehouse } from "@/shared/models/Warehouse";
+import { NextRequest } from "next/server";
+import { proxyGoGET } from "@/shared/lib/api/go-proxy";
 
-export async function GET() {
-  const session = await getWMSSession();
-  if (!session) return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
-
-  await mongoDB();
-
-  const userDoc = await WarehouseUser.findById(session.id).select("-passwordHash");
-  if (!userDoc) return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
-
-  const warehouse = await Warehouse.findOne({ warehouseCode: userDoc.warehouseId }).lean();
-  const warehouseCode = (warehouse as { warehouseCode?: string } | null)?.warehouseCode ?? userDoc.warehouseId;
-  const warehouseName = (warehouse as { name?: string } | null)?.name ?? "Main Warehouse";
-
-  return NextResponse.json({
-    success: true,
-    data: {
-      id: String(userDoc._id),
-      name: userDoc.name,
-      email: userDoc.email,
-      role: userDoc.role,
-      photo: userDoc.photo,
-      warehouseId: userDoc.warehouseId,
-      warehouseCode,
-      warehouseName,
-    },
-  });
+/** @deprecated Compatibility route; Go owns WMS staff authentication. */
+export function GET(request: NextRequest) {
+  return proxyGoGET(request, "/wms/auth/me");
 }

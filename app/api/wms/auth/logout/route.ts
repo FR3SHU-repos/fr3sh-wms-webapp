@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { proxyGoMutation } from "@/shared/lib/api/go-proxy";
 
-export async function POST() {
-  const response = NextResponse.json({ success: true, message: "Logged out" });
-  response.cookies.set({ name: "wms_token", value: "", maxAge: 0, path: "/" });
-  return response;
+/** @deprecated Compatibility route; Go owns WMS staff authentication. */
+export function POST(request: NextRequest) {
+  return proxyGoMutation(request, "/wms/auth/logout");
 }
