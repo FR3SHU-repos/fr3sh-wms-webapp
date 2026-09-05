@@ -165,7 +165,7 @@ function NewInwardModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
     try {
       const res = await fetch("/api/wms/inward", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify(form),
       });
       const data = await res.json();

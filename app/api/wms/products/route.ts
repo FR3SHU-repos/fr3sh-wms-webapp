@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const page = Number(searchParams.get("page") ?? 1);
   const limit = Number(searchParams.get("limit") ?? 50);
 
-  if (process.env.WMS_CANONICAL_CATALOGUE_READS === "1") {
+  if (process.env.WMS_CANONICAL_CATALOGUE_READS !== "0") {
     const base = process.env.GO_API_BASE_URL?.trim().replace(/\/+$/, "").replace(/\/api\/v1$/i, "");
     if (!base) return NextResponse.json({ success: false, message: "Canonical catalogue is not configured" }, { status: 503 });
     const response = await fetch(`${base}/api/v1/skus?q=${encodeURIComponent(q ?? "")}`, { cache: "no-store", signal: AbortSignal.timeout(8000) });

@@ -15,8 +15,10 @@ export async function proxyGoGET(request: NextRequest, path: string): Promise<Ne
     const headers: Record<string, string> = { Accept: "application/json" };
     const cookie = request.headers.get("cookie");
     const authorization = request.headers.get("authorization");
+    const idempotencyKey = request.headers.get("idempotency-key");
     if (cookie) headers.Cookie = cookie;
     if (authorization) headers.Authorization = authorization;
+    if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
     const upstream = await fetch(target, { headers, cache: "no-store", signal: AbortSignal.timeout(8_000) });
     return new NextResponse(await upstream.text(), {
       status: upstream.status,
@@ -37,8 +39,10 @@ export async function proxyGoMutation(request: NextRequest, path: string): Promi
   };
   const cookie = request.headers.get("cookie");
   const authorization = request.headers.get("authorization");
+  const idempotencyKey = request.headers.get("idempotency-key");
   if (cookie) headers.Cookie = cookie;
   if (authorization) headers.Authorization = authorization;
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
   try {
     const upstream = await fetch(target, { method: request.method, headers, body: await request.text(), cache: "no-store", signal: AbortSignal.timeout(15_000) });
     const response = new NextResponse(await upstream.text(), {

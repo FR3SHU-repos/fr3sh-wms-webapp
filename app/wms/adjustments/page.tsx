@@ -28,7 +28,7 @@ const APPROVAL_BADGE: Record<string, string> = {
 };
 
 function NewAdjustmentModal({ onClose }: { onClose: () => void }) {
-  const [form, setForm] = useState({ product: "", sku: "", batch: "", location: "", currentQty: "", newQty: "", reason: "Manual Correction", notes: "" });
+  const [form, setForm] = useState({ product: "", sku: "", batch: "", location: "", currentQty: "", newQty: "", unit: "kg", reason: "Manual Correction", notes: "" });
 
   const diff = Number(form.newQty) - Number(form.currentQty);
 
@@ -36,7 +36,19 @@ function NewAdjustmentModal({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     if (!form.currentQty || !form.newQty) { toast.error("Enter before and after quantities"); return; }
     toast.promise(
-      fetch("/api/wms/adjustments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) }).then(r => r.json()),
+      fetch("/api/wms/adjustments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+        body: JSON.stringify({
+          skuId: form.sku,
+          lotId: form.batch || undefined,
+          locationId: form.location,
+          quantity: String(diff),
+          unit: form.unit,
+          reason: form.reason,
+          notes: form.notes,
+        }),
+      }).then(async r => { const data = await r.json(); if (!r.ok) throw new Error(data.message); return data; }),
       { loading: "Submitting adjustment…", success: "Adjustment submitted for approval", error: "Failed to submit" },
     );
     onClose();
@@ -59,9 +71,9 @@ function NewAdjustmentModal({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-2 gap-4">
             {[
               { label: "Product *", key: "product" },
-              { label: "SKU", key: "sku" },
-              { label: "Batch ID", key: "batch" },
-              { label: "Location", key: "location" },
+              { label: "Canonical SKU ID *", key: "sku" },
+              { label: "Canonical lot ID", key: "batch" },
+              { label: "Canonical location ID *", key: "location" },
             ].map((f) => (
               <div key={f.key}>
                 <label className="block text-xs font-medium text-foreground-muted mb-1">{f.label}</label>

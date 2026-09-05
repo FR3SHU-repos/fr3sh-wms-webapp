@@ -90,7 +90,7 @@ function QCModal({
     try {
       const res = await fetch("/api/wms/quality-check", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({
           inwardId: entry.entryId,
           batchId: entry.batchId,
