@@ -181,7 +181,7 @@ running, for example:
 PORT=3001 npm run dev
 ```
 
-`npm run seed` writes to the configured database. Before running it, verify `MONGODB_URI`
+Legacy direct-database seeding has been removed. Seed canonical WMS data through Go migration commands or authenticated Go APIs.
 points to the intended environment. Never run the seed command merely to test compilation.
 
 There is no automated test command. At minimum, run `npm run build` after meaningful code
@@ -195,9 +195,7 @@ Document names only. Never paste or commit values.
 
 | Variable | Purpose | Notes |
 |---|---|---|
-| `MONGODB_URI` | MongoDB connection | Required; WMS and marketplace currently point at the same `farmers_republic` database |
-| `GO_API_BASE_URL` | Canonical Go catalogue origin | Server-side only; required when canonical reads are enabled |
-| `WMS_CANONICAL_CATALOGUE_READS` | Opt-in canonical SKU reads | Keep `0` until SKU mappings are approved and applied |
+| `GO_API_BASE_URL` | Canonical Go API origin | Server-side only; required for every WMS operation |
 | `JWT_SECRET` | WMS JWT signing/verification | Required in production; code currently has an unsafe fallback string |
 | `JWT_EXPIRES_IN` | JWT lifetime | Optional; default `8h` |
 | `JWT_COOKIE_MAX_AGE` | Cookie lifetime in seconds | Optional; default `28800` |

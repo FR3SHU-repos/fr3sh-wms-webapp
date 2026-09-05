@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Truck, QrCode, Printer, MapPin, Clock } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -22,10 +22,16 @@ const COURIERS = ["Dunzo", "Porter", "BlueDart", "Delhivery", "DTDC", "Shadowfax
 
 export default function DispatchPage() {
   const [awbInputs, setAwbInputs] = useState<Record<string, string>>({});
+  const [queue, setQueue] = useState(DISPATCH_QUEUE.slice(0, 0));
 
-  const dispatch = (id: string) => {
+  useEffect(() => { Promise.all([fetch("/api/wms/packing?status=packed").then(r => r.json()), fetch("/api/wms/dispatch").then(r => r.json())]).then(([p, d]) => {
+    const ready = (p.data ?? []).map((x: any) => ({ id: x.packId, orderId: x.pickId, customer: "", address: "", items: (x.items ?? []).length, weight: `${(x.weightGrams ?? 0) / 1000} kg`, courier: "Local Rider", awb: "", status: "Ready for Dispatch" }));
+    const sent = (d.data ?? []).map((x: any) => ({ id: x.dispatchId, packId: x.packId, orderId: x.packId, customer: "", address: "", items: (x.items ?? []).length, weight: "", courier: x.courier, awb: x.tracking, status: "Dispatched" })); setQueue([...ready, ...sent]);
+  }).catch(() => toast.error("Dispatch service unavailable")); }, []);
+  const dispatch = async (id: string) => {
     if (!awbInputs[id]) { toast.error("Enter AWB / tracking number"); return; }
-    toast.success("Dispatched — tracking active");
+    const row = queue.find(x => x.id === id); const res = await fetch("/api/wms/dispatch", { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ packId: id, courier: row?.courier, tracking: awbInputs[id] }) });
+    if (!res.ok) { toast.error((await res.json()).message ?? "Dispatch failed"); return; } setQueue(q => q.map(x => x.id === id ? { ...x, status: "Dispatched", awb: awbInputs[id] } : x)); toast.success("Dispatched — tracking active");
   };
 
   return (
@@ -39,10 +45,10 @@ export default function DispatchPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: "Ready for Dispatch", value: DISPATCH_QUEUE.filter(d => d.status === "Ready for Dispatch").length },
-          { label: "Dispatched Today", value: DISPATCH_QUEUE.filter(d => d.status === "Dispatched").length },
-          { label: "In Transit", value: DISPATCH_QUEUE.filter(d => d.status === "In Transit").length },
-          { label: "Delivered Today", value: DISPATCH_QUEUE.filter(d => d.status === "Delivered").length },
+          { label: "Ready for Dispatch", value: queue.filter(d => d.status === "Ready for Dispatch").length },
+          { label: "Dispatched Today", value: queue.filter(d => d.status === "Dispatched").length },
+          { label: "In Transit", value: queue.filter(d => d.status === "In Transit").length },
+          { label: "Delivered Today", value: queue.filter(d => d.status === "Delivered").length },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl bg-surface-card border border-border p-4">
             <p className="text-xs text-foreground-muted font-medium">{s.label}</p>
@@ -68,7 +74,7 @@ export default function DispatchPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {DISPATCH_QUEUE.map((d) => (
+              {queue.map((d) => (
                 <tr key={d.id} className="hover:bg-surface transition-colors">
                   <td className="px-4 py-3 font-mono text-xs text-foreground-muted">{d.id}</td>
                   <td className="px-4 py-3 font-medium text-foreground-heading">{d.orderId}</td>

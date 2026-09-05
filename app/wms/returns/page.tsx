@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { RotateCcw, Plus, Camera } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -20,13 +20,14 @@ const STATUS_BADGE: Record<string, string> = {
   Disposed: "bg-status-danger-surface text-status-danger",
 };
 
-function NewReturnModal({ onClose }: { onClose: () => void }) {
-  const [form, setForm] = useState({ orderId: "", product: "", batch: "", customer: "", reason: "Damaged", inspectionResult: "", finalAction: "Restock", notes: "" });
+function NewReturnModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [form, setForm] = useState({ dispatchId: "", skuId: "", lotId: "", quantity: "1", unit: "piece", quarantineLocationId: "", reason: "Damaged", finalAction: "Further Inspection", notes: "" });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Return registered — pending inspection");
-    onClose();
+    const res = await fetch("/api/wms/returns", { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify(form) });
+    if (!res.ok) { toast.error((await res.json()).message ?? "Return failed"); return; }
+    toast.success("Return registered in quarantine"); onSuccess(); onClose();
   };
 
   return (
@@ -39,10 +40,10 @@ function NewReturnModal({ onClose }: { onClose: () => void }) {
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: "Order ID *", key: "orderId", placeholder: "FR1023" },
-              { label: "Customer Name", key: "customer", placeholder: "Customer name" },
-              { label: "Product *", key: "product", placeholder: "Product name" },
-              { label: "Batch ID", key: "batch", placeholder: "Batch ID" },
+              { label: "Dispatch ID *", key: "dispatchId", placeholder: "DISP-..." },
+              { label: "Canonical SKU ID *", key: "skuId", placeholder: "24-character ID" },
+              { label: "Lot ID", key: "lotId", placeholder: "Canonical lot ID" },
+              { label: "Quarantine Location ID *", key: "quarantineLocationId", placeholder: "Canonical location ID" },
             ].map((f) => (
               <div key={f.key}>
                 <label className="block text-xs font-medium text-foreground-muted mb-1">{f.label}</label>
@@ -65,16 +66,16 @@ function NewReturnModal({ onClose }: { onClose: () => void }) {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-foreground-muted mb-1">Final Action</label>
-              <select value={form.finalAction} onChange={(e) => setForm({ ...form, finalAction: e.target.value })}
+              <label className="block text-xs font-medium text-foreground-muted mb-1">Unit</label>
+              <select value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}
                 className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-border-focus">
-                {RETURN_ACTIONS.map((a) => <option key={a}>{a}</option>)}
+                {["piece", "kg", "g", "litre", "ml", "pack", "box"].map((a) => <option key={a}>{a}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-foreground-muted mb-1">Inspection Result</label>
-            <input value={form.inspectionResult} onChange={(e) => setForm({ ...form, inspectionResult: e.target.value })}
+            <label className="block text-xs font-medium text-foreground-muted mb-1">Quantity</label>
+            <input required value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })}
               className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-border-focus"
               placeholder="e.g. Partially Acceptable" />
           </div>
@@ -98,6 +99,9 @@ function NewReturnModal({ onClose }: { onClose: () => void }) {
 
 export default function ReturnsPage() {
   const [showModal, setShowModal] = useState(false);
+  const [returns, setReturns] = useState(SAMPLE_RETURNS.slice(0, 0));
+  const load = () => fetch("/api/wms/returns", { cache: "no-store" }).then(r => r.json()).then(x => { if (x.success) setReturns(x.data.map((r: any) => ({ id: r.returnId, orderId: r.dispatchId, customer: "", product: r.line?.product ?? r.line?.skuCode, batch: r.line?.lotId ?? "", reason: r.reason, inspectionResult: "Pending QC", finalAction: r.disposition, status: "Pending Inspection", refund: "Not applicable" }))); }).catch(() => toast.error("Returns service unavailable"));
+  useEffect(() => { void load(); }, []);
 
   return (
     <div className="space-y-6">
@@ -126,7 +130,7 @@ export default function ReturnsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {SAMPLE_RETURNS.map((r) => (
+              {returns.map((r) => (
                 <tr key={r.id} className="hover:bg-surface transition-colors cursor-pointer">
                   <td className="px-4 py-3 font-mono text-xs text-foreground-muted">{r.id}</td>
                   <td className="px-4 py-3 font-medium text-foreground-heading">{r.orderId}</td>
@@ -147,7 +151,7 @@ export default function ReturnsPage() {
         </div>
       </div>
 
-      {showModal && <NewReturnModal onClose={() => setShowModal(false)} />}
+      {showModal && <NewReturnModal onClose={() => setShowModal(false)} onSuccess={load} />}
     </div>
   );
 }

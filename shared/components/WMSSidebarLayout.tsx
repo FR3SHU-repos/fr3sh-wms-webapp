@@ -51,6 +51,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: ShoppingCart,
     children: [
       { href: "/wms/orders/picking", label: "Picking" },
+      { href: "/wms/putaway", label: "Putaway" },
       { href: "/wms/orders/packing", label: "Packing" },
     ],
   },

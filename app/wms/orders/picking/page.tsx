@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ShoppingCart, Play, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -48,18 +48,24 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function PickingPage() {
-  const [tasks, setTasks] = useState(PICK_TASKS);
+  const [tasks, setTasks] = useState(PICK_TASKS.slice(0, 0));
   const [active, setActive] = useState<typeof PICK_TASKS[0] | null>(null);
 
-  const startPick = (taskId: string) => {
-    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: "Picking" } : t));
-    toast.success("Pick task started");
+  useEffect(() => { fetch("/api/wms/picking", { cache: "no-store" }).then(r => r.json()).then(x => {
+    if (x.success) setTasks(x.data.map((t: any) => ({ ...t, id: t.pickId, orderId: t.orderId, status: t.status === "allocated" ? "Pending Pick" : t.status === "in_progress" ? "Picking" : t.status === "picked" ? "Picked" : "Cancelled", items: (t.items ?? []).map((i: any) => ({ product: i.product ?? i.skuCode, sku: i.skuCode, qty: i.quantity, unit: i.unit, location: i.locationId, batch: i.lotId })) })));
+  }).catch(() => toast.error("Picking service unavailable")); }, []);
+
+  const updatePick = async (taskId: string, status: string) => {
+    const current: any = tasks.find(t => t.id === taskId);
+    const res = await fetch(`/api/wms/picking?id=${encodeURIComponent(taskId)}`, { method: "PATCH", headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ status, revision: current?.revision ?? 1 }) });
+    if (!res.ok) throw new Error((await res.json()).message ?? "Pick update failed");
+  };
+  const startPick = async (taskId: string) => {
+    try { await updatePick(taskId, "in_progress"); setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: "Picking", revision: ((t as any).revision ?? 1) + 1 } as any : t)); toast.success("Pick task started"); } catch (e) { toast.error(e instanceof Error ? e.message : "Pick update failed"); }
   };
 
-  const completePick = (taskId: string) => {
-    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: "Picked" } : t));
-    setActive(null);
-    toast.success("Items picked — send to packing");
+  const completePick = async (taskId: string) => {
+    try { await updatePick(taskId, "picked"); const pack = await fetch("/api/wms/packing", { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ pickId: taskId, packageId: `PKG-${crypto.randomUUID()}` }) }); if (!pack.ok) throw new Error((await pack.json()).message ?? "Packing task creation failed"); setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: "Picked" } : t)); setActive(null); toast.success("Items picked — packing task created"); } catch (e) { toast.error(e instanceof Error ? e.message : "Pick update failed"); }
   };
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Package, CheckCircle2, Printer, Scale, QrCode } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -31,7 +31,7 @@ const PACKING_QUEUE = [
 ];
 
 export default function PackingPage() {
-  const [orders, setOrders] = useState(PACKING_QUEUE);
+  const [orders, setOrders] = useState(PACKING_QUEUE.slice(0, 0));
   const [active, setActive] = useState<(typeof PACKING_QUEUE)[0] | null>(null);
 
   const toggleVerify = (orderId: string, idx: number) => {
@@ -44,10 +44,17 @@ export default function PackingPage() {
     );
   };
 
-  const completePack = (orderId: string) => {
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: "Packed" } : o));
-    setActive(null);
-    toast.success("Order packed — ready for dispatch");
+  useEffect(() => { fetch("/api/wms/packing", { cache: "no-store" }).then(r => r.json()).then(x => {
+    if (x.success) setOrders(x.data.map((p: any) => ({ ...p, id: p.packId, orderId: p.pickId, customer: "", address: "", expectedWeight: `${(p.weightGrams ?? 0) / 1000} kg`, status: p.status === "packed" ? "Packed" : p.status === "packing" ? "Packing" : "Pending Packing", items: (p.items ?? []).map((i: any) => ({ product: i.product ?? i.skuCode, sku: i.skuCode, qty: i.quantity, unit: i.unit, batch: i.lotId, verified: false })) })));
+  }).catch(() => toast.error("Packing service unavailable")); }, []);
+
+  const completePack = async (orderId: string) => {
+    try {
+      const current: any = orders.find(o => o.id === orderId); let revision = current?.revision ?? 1;
+      if (current?.status === "Pending Packing") { const start = await fetch(`/api/wms/packing?id=${encodeURIComponent(orderId)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "packing", revision }) }); if (!start.ok) throw new Error((await start.json()).message); revision++; }
+      const res = await fetch(`/api/wms/packing?id=${encodeURIComponent(orderId)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "packed", revision }) }); if (!res.ok) throw new Error((await res.json()).message);
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: "Packed" } : o)); setActive(null); toast.success("Order packed — ready for dispatch");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Pack update failed"); }
   };
 
   return (

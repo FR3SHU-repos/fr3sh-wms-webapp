@@ -105,7 +105,7 @@ function NewProductModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     try {
       const res = await fetch("/api/wms/products", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify(form),
       });
       const data = await res.json();

@@ -55,7 +55,6 @@ cp .env.example .env
 Required values:
 
 ```env
-MONGODB_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/farmers_republic?...
 JWT_SECRET=<generate with: openssl rand -base64 64>
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<your anon key>
@@ -90,7 +89,7 @@ App starts at: **http://localhost:3001** (or `:3000` if farmers-republic is not 
 
 ## WMS Routes
 
-Canonical Go SKU reads are available behind `WMS_CANONICAL_CATALOGUE_READS=1` with `GO_API_BASE_URL` configured. Keep the flag disabled until reviewed SKU mappings populate canonical variants and SKUs. The adapter changes catalogue identity reads only and never moves or recomputes inventory quantities.
+The WMS runtime is fully API-backed. Configure `GO_API_BASE_URL`; the web application has no MongoDB connection, Mongoose models, or catalogue feature flag. Canonical product, SKU and inventory ownership remains in `go-api-backend`.
 
 | Route | Description |
 |---|---|

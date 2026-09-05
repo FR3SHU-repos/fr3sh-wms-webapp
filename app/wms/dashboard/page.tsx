@@ -1,3 +1,5 @@
+"use client";
+import { useEffect, useState } from "react";
 import {
   PackageOpen,
   ClipboardCheck,
@@ -105,6 +107,9 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+  const [metrics, setMetrics] = useState<Record<string, number>>({});
+  useEffect(() => { fetch("/api/wms/dashboard", { cache: "no-store" }).then(r => r.json()).then(x => { if (x.success) setMetrics(x.data); }).catch(() => undefined); }, []);
+  const cards = STAT_CARDS.map((card, index) => ({ ...card, value: `${[metrics.todayInbound, metrics.pendingQC, metrics.ordersTopick, metrics.ordersToPack, metrics.dispatchPending, metrics.lowStockAlerts, metrics.nearExpiryBatches, metrics.damagedBatches][index] ?? 0}` }));
   return (
     <div className="space-y-8">
       <div>
@@ -116,7 +121,7 @@ export default function DashboardPage() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {STAT_CARDS.map((card) => (
+        {cards.map((card) => (
           <div key={card.label} className="rounded-2xl bg-surface-card border border-border p-5 flex items-start gap-4">
             <div className={`rounded-xl p-2.5 ${card.bg}`}>
               <card.icon className={`h-5 w-5 ${card.color}`} />
