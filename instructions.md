@@ -26,6 +26,19 @@ locations, picking, returns, adjustments, products, suppliers, and warehouses ha
 Putaway, packing, dispatch, reports, settings management, cycle counts, and alerts are
 incomplete, static, or model/UI-only. Never imply that these gaps are implemented.
 
+**Unified Go backend migration:** a sibling project, `../go-api-backend/`, now owns **staff
+identity** (register/login/me/logout, its own `wms_token` — a separate token type and role
+vocabulary from this app's, deliberately not merged) and **facility metadata** (warehouse
+CRUD, warehouse-location hierarchy, supplier directory) for this app, reached via
+`app/api/wms/{auth,warehouses,locations,farmers}` proxy routes
+(`shared/lib/api/go-proxy.ts` — no Mongoose, no fallback). **Every stock-touching domain
+listed above (inbound, QC, inventory/batches, picking, returns, adjustments, products,
+dashboard) is unaffected and remains exactly as described in this file** — that is a
+deliberate scope boundary in every migration slice run so far, not an oversight. See
+`../go-api-backend/docs/api-migration-map.md` §4.1.5 for the receipts, and note the
+deployment prerequisite it documents: this app's `JWT_SECRET` must equal the Go service's or
+a Go-issued `wms_token` will be rejected by every not-yet-migrated route here.
+
 ---
 
 ## Ecosystem Relationship
