@@ -1,0 +1,7 @@
+[build.environment]
+  # These keys hold non-secret values that also appear verbatim inside Next.js
+  # and @types/node (e.g. 604800 = seconds in a week, 7d, 12), so Netlify's
+  # secret scanner false-positives on them. Public API origins are intentionally
+  # embedded by Next.js. Real secrets (JWT_SECRET, JWT_REFRESH_SECRET) stay
+  # scanned — they are not listed here.
+  SECRETS_SCAN_OMIT_KEYS = "JWT_COOKIE_MAX_AGE,JWT_EXPIRES_IN,JWT_REFRESH_EXPIRES_IN,BCRYPT_SALT_ROUNDS,GO_API_BASE_URL,NEXT_PUBLIC_API_BASE_URL"

@@ -12,13 +12,10 @@ export interface WMSTokenPayload {
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "fallback-secret-change-in-production";
 const COOKIE_NAME = "wms_token";
-const COOKIE_MAX_AGE = Number(process.env.JWT_COOKIE_MAX_AGE ?? 28800);
 
-export function signWMSToken(payload: WMSTokenPayload): string {
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: (process.env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"]) ?? "8h",
-  });
-}
+// Cookie issuance / token signing now lives in go-api-backend (`wmsauth`); the
+// login route here is a database-free proxy that relays Go's Set-Cookie. This
+// app only *verifies* the `wms_token` cookie for the SSR route guard.
 
 export function verifyWMSToken(token: string): WMSTokenPayload | null {
   try {
@@ -33,16 +30,4 @@ export async function getWMSSession(): Promise<WMSTokenPayload | null> {
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
   return verifyWMSToken(token);
-}
-
-export function makeWMSCookie(token: string) {
-  return {
-    name: COOKIE_NAME,
-    value: token,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-    maxAge: COOKIE_MAX_AGE,
-    path: "/",
-  };
 }
