@@ -14,7 +14,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get("wms_token")?.value;
+  const token = request.cookies.get("token")?.value;
   if (!token || !verifyWMSToken(token)) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
